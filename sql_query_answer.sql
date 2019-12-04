@@ -23,6 +23,12 @@ user_id | int
 body | text
 created_at | datetime
 
+
+ASSUMPTION:
+*  "YYYY-MM-DD"
+* 'users' table based on unique user ids (1 user per row) - despite 'device' column 
+
+
 */
 
 -- PART 1
@@ -33,19 +39,19 @@ WHERE c.create_at >= '2019-01-01' AND c.create_at <= '2019-01-31' -- assumption:
 GROUP BY c.user_id
 ORDER BY c.user_id
 
--- EXAMPLE (user other dataset)
+--  Reference
 
 SELECT oi.order_id, COUNT(oi.order_id) as count_1 
 FROM order_items oi LEFT JOIN orders o ON oi.order_id = o.order_id 
 WHERE o.order_purchase_timestamp >= '2016-01-01' AND o.order_purchase_timestamp < '2017-01-01' 
 GROUP BY oi. order_id ORDER BY count_1 DESC;
 
--- PART 2 - WORKS. 
+-- PART 2 
 
 WITH comment_count_by_user AS (
     SELECT c.user_id, COUNT(c.user_id) as comment_count
     FROM users u LEFT JOIN user_comments c ON u.id = c.user_id
-    WHERE c.create_at >= '2019-01-01' AND c.create_at <= '2019-01-31' -- assumption: date format is "YYYY-MM_DD"
+    WHERE c.create_at >= '2019-01-01' AND c.create_at <= '2019-01-31' 
     GROUP BY c.user_id
     ORDER BY c.user_id)
 
@@ -54,19 +60,19 @@ SELECT generate_series(0,
 FROM comment_count_by_user;
 
 
--- ExAMPLE 1 - outside reference
+-- Reference
 
 SELECT generate_series(min(start_timestamp)
                      , max(start_timestamp)
                      , interval '1 hour') AS ts
 FROM   header_table;
 
--- EXAMPLE 2 - create temp table (WORKS)
+-- Reference
 
 CREATE TEMPORARY TABLE bins_test AS
     SELECT * FROM GENERATE_SERIES(0,10) AS bins_0_10;
 
--- OUTSIDE REFERENCE - Do not create temp table. Just join with series
+-- Reference
 
 
   SELECT (to_char(serie,'yyyy-mm')) AS year, sum(amount)::int AS eintraege FROM (
@@ -86,7 +92,7 @@ CREATE TEMPORARY TABLE bins_test AS
   GROUP BY Year   
   ORDER BY Year ASC; 
 
--- EXAMPLE 3 - CTE + Generate series from CTE
+-- Reference
 WITH order_count_by_order_2016 AS (
     SELECT oi.order_id, COUNT(oi.order_id) as count_1 
     FROM order_items oi LEFT JOIN orders o ON oi.order_id = o.order_id 
@@ -97,7 +103,7 @@ SELECT generate_series(0
                      , max(count_1)) AS cs
 FROM   order_count_by_order_2016;  
 
--- EXAMPLE 4 - join CTE + SERIES
+-- Reference
 
 WITH order_count_by_order_2016 AS (
     SELECT oi.order_id, COUNT(oi.order_id) as count_1 
@@ -110,5 +116,42 @@ FROM generate_series(0, max(oc.count_1)) AS cs FROM order_count_by_order_2016 AS
         INNER JOIN order_count_by_order oc ON g.cs = oc.count_t
 GROUP BY COUNT(count_1);
 
--- EXAMPLE 4 : Join CTE + generate series
+--------------------------
 
+-- ANSWER FORMAT, WITH OLIST KAGGLE DATASET
+
+WITH order_count_by_order_2016 AS (
+    SELECT oi.order_id, COUNT(oi.order_id) as count_1 
+    FROM order_items oi LEFT JOIN orders o ON oi.order_id = o.order_id 
+    WHERE o.order_purchase_timestamp >= '2016-01-01' AND o.order_purchase_timestamp < '2017-01-01' 
+    GROUP BY oi. order_id ORDER BY count_1 DESC)
+
+SELECT count_1 AS order_count, COUNT(order_id)
+FROM order_count_by_order_2016
+GROUP BY count_1
+ORDER BY count_1;
+
+ order_count | count
+-------------+-------
+           1 |   276
+           2 |    25
+           3 |     5
+           4 |     3
+           5 |     1
+           6 |     2
+
+---------------------------------------------  
+
+-- FINAL ANSWER 
+
+WITH comment_count_by_user AS (
+    SELECT c.user_id, COUNT(c.user_id) as comment_count
+    FROM users u LEFT JOIN user_comments c ON u.id = c.user_id
+    WHERE c.create_at >= '2019-01-01' AND c.create_at <= '2019-01-31'
+    GROUP BY c.user_id
+    ORDER BY c.user_id)
+
+SELECT comment_count, COUNT(user_id)
+FROM comment_count_by_user
+GROUP BY comment_count
+ORDER BY comment_count;
